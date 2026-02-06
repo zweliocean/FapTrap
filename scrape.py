@@ -10,7 +10,7 @@ START_URL = "https://xhamster.com/search/hotwife"
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
 # keywords to include (case-insensitive)
-KEYWORDS = ["wife", "bbc"]
+KEYWORDS = ["wife"]
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_PAGES = 50
@@ -50,4 +50,89 @@ def extract_videos(page_url, html):
             continue
 
         if video.get("src"):
-            results.append((title.strip(), urljoin(page_u_
+            results.append((title.strip(), urljoin(page_url, video["src"])))
+
+        for source in video.find_all("source"):
+            if source.get("src"):
+                # <-- fixed, full single-line append (no broken newline)
+                results.append((title.strip(), urljoin(page_url, source["src"])))
+
+    # <a href="video.xxx">
+    for a in soup.find_all("a", href=True):
+        url = urljoin(page_url, a["href"])
+        if looks_like_video(url):
+            title = a.text.strip() or page_title
+            if title_matches(title):
+                results.append((title, url))
+
+    return results
+
+
+def extract_links(page_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    base_host = urlparse(START_URL).netloc
+    links = set()
+
+    for a in soup.find_all("a", href=True):
+        full_url = urljoin(page_url, a["href"])
+        if urlparse(full_url).netloc == base_host:
+            links.add(full_url)
+
+    return links
+
+# =================================================
+# PLAYLIST
+# =================================================
+def write_playlist(videos):
+    with open(OUTPUT_PLAYLIST, "w", encoding="utf-8") as f:
+        f.write("#EXTM3U\n")
+        for title, url in videos:
+            f.write(f"#EXTINF:-1,{title}\n")
+            f.write(f"{url}\n")
+
+# =================================================
+# CRAWLER
+# =================================================
+def crawl(start_url):
+    start_time = time.time()
+    visited = set()
+    to_visit = {start_url}
+    videos = []
+
+    try:
+        while to_visit and len(visited) < MAX_PAGES:
+            if time.time() - start_time > MAX_SECONDS:
+                print("⏱️ Time limit reached, stopping crawl")
+                break
+
+            url = to_visit.pop()
+            if url in visited:
+                continue
+
+            visited.add(url)
+            print(f"Crawling: {url} | visited={len(visited)} videos={len(videos)}")
+
+            try:
+                html = get_html(url)
+            except Exception as e:
+                print(f"⚠️ Failed to fetch {url}: {e}")
+                continue
+
+            videos.extend(extract_videos(url, html))
+            videos = list(dict.fromkeys(videos))  # dedupe
+
+            write_playlist(videos)  # incremental save
+
+            to_visit |= extract_links(url, html)
+
+    finally:
+        # absolute last save no matter what
+        write_playlist(videos)
+
+    return videos
+
+# =================================================
+if __name__ == "__main__":
+    videos = crawl(START_URL)
+    print(f"✅ Finished with {len(videos)} videos saved")
+ 
