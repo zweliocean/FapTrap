@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 START_URL = "https://xhamster.com/search/hotwife"
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
-KEYWORDS = ["wufe"]
+KEYWORDS = ["wife"]
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_PAGES = 50
