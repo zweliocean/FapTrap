@@ -1,154 +1,82 @@
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
-import java.io.FileWriter;
-import java.net.URI;
-import java.util.*;
+START_URL = "https://example.com/videos"
+OUTPUT_PLAYLIST = "playlist.m3u8"
 
-public class VideoPlaylistScraper {
+# keywords to include (case-insensitive)
+KEYWORDS = ["italy", "france", "road trip", "mountain"]
 
-    static final String START_URL = "https://www.eporner.com/tag/qos/";
-    static final String OUTPUT = "playlist.m3u8";
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+MAX_PAGES = 50
 
-    static final List<String> KEYWORDS = List.of(
-            "qos", "hotwife", "cuckold", "bbcslut"
-    );
+# -------------------------------------------------
+def get_html(url):
+    r = requests.get(url, headers=HEADERS, timeout=20)
+    r.raise_for_status()
+    return r.text
 
-    static final List<String> VIDEO_EXTENSIONS = List.of(
-            ".mp4", ".webm", ".mkv", ".avi", ".mov", ".m3u8"
-    );
+# -------------------------------------------------
+def title_matches(title):
+    t = title.lower()
+    return any(k in t for k in KEYWORDS)
 
-    static final int MAX_PAGES = 50;
+# -------------------------------------------------
+def looks_like_video(url):
+    url = url.lower()
+    return any(url.endswith(ext) for ext in (
+        ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m3u8"
+    ))
 
-    // --------------------------------------------
-    static boolean titleMatches(String title) {
-        String t = title.toLowerCase();
-        return KEYWORDS.stream().anyMatch(t::contains);
-    }
+# -------------------------------------------------
+def extract_videos(page_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    page_title = soup.title.string.strip() if soup.title else "Untitled"
+    results = []
 
-    // --------------------------------------------
-    static boolean looksLikeVideo(String url) {
-        String lower = url.toLowerCase();
-        return VIDEO_EXTENSIONS.stream().anyMatch(lower::endsWith);
-    }
+    # <video> and <source>
+    for video in soup.find_all("video"):
+        title = video.get("title", page_title)
 
-    // --------------------------------------------
-    static Set<String> extractLinks(Document doc, String baseHost) {
-        Set<String> links = new HashSet<>();
+        if not title_matches(title):
+            continue
 
-        for (Element a : doc.select("a[href]")) {
-            String abs = a.absUrl("href");
-            if (!abs.isEmpty() && URI.create(abs).getHost().equals(baseHost)) {
-                links.add(abs);
-            }
-        }
-        return links;
-    }
+        if video.get("src"):
+            results.append((title.strip(), urljoin(page_url, video["src"])))
 
-    // --------------------------------------------
-    static List<VideoEntry> extractVideos(Document doc) {
-        List<VideoEntry> videos = new ArrayList<>();
-        String pageTitle = doc.title().isEmpty() ? "Untitled" : doc.title();
+        for source in video.find_all("source"):
+            if source.get("src"):
+                results.append((title.strip(), urljoin(page_url, source["src"])))
 
-        // <video> and <source>
-        for (Element video : doc.select("video")) {
-            String title = video.hasAttr("title") ? video.attr("title") : pageTitle;
+    # <a href="video.xxx">
+    for a in soup.find_all("a", href=True):
+        url = urljoin(page_url, a["href"])
+        if looks_like_video(url):
+            title = a.text.strip() or page_title
+            if title_matches(title):
+                results.append((title, url))
 
-            if (!titleMatches(title)) continue;
+    return results
 
-            if (video.hasAttr("src")) {
-                videos.add(new VideoEntry(title, video.absUrl("src")));
-            }
+# -------------------------------------------------
+def extract_links(page_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    links = set()
 
-            for (Element source : video.select("source[src]")) {
-                videos.add(new VideoEntry(title, source.absUrl("src")));
-            }
-        }
+    base_host = urlparse(START_URL).netloc
 
-        // <a href="video.xxx">
-        for (Element a : doc.select("a[href]")) {
-            String url = a.absUrl("href");
-            if (looksLikeVideo(url)) {
-                String title = a.text().isBlank() ? pageTitle : a.text();
-                if (titleMatches(title)) {
-                    videos.add(new VideoEntry(title, url));
-                }
-            }
-        }
+    for a in soup.find_all("a", href=True):
+        full = urljoin(page_url, a["href"])
+        if urlparse(full).netloc == base_host:
+            links.add(full)
 
-        return videos;
-    }
+    return links
 
-    // --------------------------------------------
-    static List<VideoEntry> crawlSite() throws Exception {
-        Set<String> visited = new HashSet<>();
-        Set<String> toVisit = new HashSet<>();
-        List<VideoEntry> results = new ArrayList<>();
+# -------------------------------------------------
+def crawl(start_url):
+    visited = set()
+    to_visit = {start_url}
+    videos = []
 
-        URI start = URI.create(START_URL);
-        String host = start.getHost();
-        toVisit.add(START_URL);
-
-        while (!toVisit.isEmpty() && visited.size() < MAX_PAGES) {
-            String url = toVisit.iterator().next();
-            toVisit.remove(url);
-
-            if (visited.contains(url)) continue;
-            visited.add(url);
-
-            System.out.println("Crawling: " + url);
-
-            Document doc = Jsoup.connect(url)
-                    .userAgent("Mozilla/5.0")
-                    .timeout(20000)
-                    .get();
-
-            results.addAll(extractVideos(doc));
-            toVisit.addAll(extractLinks(doc, host));
-        }
-
-        // de-duplicate
-        return new ArrayList<>(new LinkedHashSet<>(results));
-    }
-
-    // --------------------------------------------
-    static void writePlaylist(List<VideoEntry> videos) throws Exception {
-        try (FileWriter fw = new FileWriter(OUTPUT)) {
-            fw.write("#EXTM3U\n");
-            for (VideoEntry v : videos) {
-                fw.write("#EXTINF:-1," + v.title + "\n");
-                fw.write(v.url + "\n");
-            }
-        }
-    }
-
-    // --------------------------------------------
-    public static void main(String[] args) throws Exception {
-        List<VideoEntry> videos = crawlSite();
-        writePlaylist(videos);
-        System.out.println("Saved " + videos.size() + " videos to " + OUTPUT);
-    }
-
-    // --------------------------------------------
-    static class VideoEntry {
-        String title;
-        String url;
-
-        VideoEntry(String title, String url) {
-            this.title = title.trim();
-            this.url = url;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            return o instanceof VideoEntry v && url.equals(v.url);
-        }
-
-        @Override
-        public int hashCode() {
-            return url.hashCode();
-        }
-    }
-}
+    while to_visit and len(visited_
