@@ -5,11 +5,11 @@ from urllib.parse import urljoin, urlparse
 # =================================================
 # CONFIG
 # =================================================
-START_URL = "https://www.eporner.com/tag/qos/"
+START_URL = "https://xhamster.com/search/hotwife"
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
 # keywords to include (case-insensitive)
-KEYWORDS = ["hotwife", "cuckold"]
+KEYWORDS = ["wife"]
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_PAGES = 50
