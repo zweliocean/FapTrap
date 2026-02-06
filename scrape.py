@@ -2,11 +2,11 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-START_URL = "https://example.com/videos"
+START_URL = "https://www.eporner.com/tag/qos/"
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
 # keywords to include (case-insensitive)
-KEYWORDS = ["italy", "france", "road trip", "mountain"]
+KEYWORDS = ["hotwife", "cuckold"]
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_PAGES = 50
