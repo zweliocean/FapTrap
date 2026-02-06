@@ -1,4 +1,5 @@
 import requests
+import time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
@@ -8,14 +9,12 @@ from urllib.parse import urljoin, urlparse
 START_URL = "https://xhamster.com/search/hotwife"
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
-# keywords to include (case-insensitive)
-KEYWORDS = ["wife"]
+KEYWORDS = ["wufe"]
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_PAGES = 50
+MAX_SECONDS = 120
 
-# =================================================
-# HELPERS
 # =================================================
 def get_html(url):
     r = requests.get(url, headers=HEADERS, timeout=20)
@@ -24,28 +23,23 @@ def get_html(url):
 
 
 def title_matches(title):
-    title = title.lower()
-    return any(keyword in title for keyword in KEYWORDS)
+    t = title.lower()
+    return any(k in t for k in KEYWORDS)
 
 
 def looks_like_video(url):
-    url = url.lower()
-    return url.endswith((
+    return url.lower().endswith((
         ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m3u8"
     ))
 
-# =================================================
-# EXTRACTION
 # =================================================
 def extract_videos(page_url, html):
     soup = BeautifulSoup(html, "html.parser")
     page_title = soup.title.string.strip() if soup.title else "Untitled"
     results = []
 
-    # <video> and <source>
     for video in soup.find_all("video"):
         title = video.get("title", page_title)
-
         if not title_matches(title):
             continue
 
@@ -56,7 +50,6 @@ def extract_videos(page_url, html):
             if source.get("src"):
                 results.append((title.strip(), urljoin(page_url, source["src"])))
 
-    # <a href="video.xxx">
     for a in soup.find_all("a", href=True):
         url = urljoin(page_url, a["href"])
         if looks_like_video(url):
@@ -69,8 +62,8 @@ def extract_videos(page_url, html):
 
 def extract_links(page_url, html):
     soup = BeautifulSoup(html, "html.parser")
-    links = set()
     base_host = urlparse(START_URL).netloc
+    links = set()
 
     for a in soup.find_all("a", href=True):
         full_url = urljoin(page_url, a["href"])
@@ -80,31 +73,6 @@ def extract_links(page_url, html):
     return links
 
 # =================================================
-# CRAWLER
-# =================================================
-def crawl(start_url):
-    visited = set()
-    to_visit = {start_url}
-    videos = []
-
-    while to_visit and len(visited) < MAX_PAGES:
-        url = to_visit.pop()
-        if url in visited:
-            continue
-
-        print(f"Crawling: {url}")
-        visited.add(url)
-
-        html = get_html(url)
-        videos.extend(extract_videos(url, html))
-        to_visit |= extract_links(url, html)
-
-    # remove duplicates, keep order
-    return list(dict.fromkeys(videos))
-
-# =================================================
-# PLAYLIST
-# =================================================
 def write_playlist(videos):
     with open(OUTPUT_PLAYLIST, "w", encoding="utf-8") as f:
         f.write("#EXTM3U\n")
@@ -113,9 +81,45 @@ def write_playlist(videos):
             f.write(f"{url}\n")
 
 # =================================================
-# MAIN
+def crawl(start_url):
+    start_time = time.time()
+    visited = set()
+    to_visit = {start_url}
+    videos = []
+
+    try:
+        while to_visit and len(visited) < MAX_PAGES:
+            if time.time() - start_time > MAX_SECONDS:
+                print("⏱️ Time limit reached, stopping crawl")
+                break
+
+            url = to_visit.pop()
+            if url in visited:
+                continue
+
+            visited.add(url)
+            print(f"Crawling: {url} | visited={len(visited)} videos={len(videos)}")
+
+            try:
+                html = get_html(url)
+            except Exception as e:
+                print(f"⚠️ Failed to fetch {url}: {e}")
+                continue
+
+            videos.extend(extract_videos(url, html))
+            videos = list(dict.fromkeys(videos))  # dedupe
+
+            write_playlist(videos)  # incremental save
+
+            to_visit |= extract_links(url, html)
+
+    finally:
+        write_playlist(videos)
+
+    return videos
+
 # =================================================
 if __name__ == "__main__":
     videos = crawl(START_URL)
-    write_playlist(videos)
-    print(f"Saved {len(videos)} videos to {OUTPUT_PLAYLIST}")
+    print(f"✅ Finished with {len(videos)} videos saved")
+ 
