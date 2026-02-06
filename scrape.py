@@ -3,116 +3,123 @@ import time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-# =================================================
-# CONFIG
-# =================================================
-START_URL = "https://xhamster.com/search/hotwife" 
+START_URL = "https://xhamster.com/search/hotwife
 OUTPUT_PLAYLIST = "playlist.m3u8"
 
-KEYWORDS = [
-    "fuck"
-]
+KEYWORDS = ["fuck"]
 
 MAX_PAGES = 50
 MAX_SECONDS = 120
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0",
-    "Accept": "*/*"
+    "User-Agent": "Mozilla/5.0"
 }
 
-VIDEO_EXTENSIONS = [
-    ".mp4",
-    ".webm",
-    ".mov",
-    ".mkv",
-    ".avi",
-    ".m3u8"
-]
+VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".mkv", ".avi", ".m3u8"]
 
-# =================================================
-# CORE HELPERS
-# =================================================
 def get_html(url):
-    response = requests.get(url, headers=HEADERS, timeout=20)
-    response.raise_for_status()
-    return response.text
-
+    r = requests.get(url, headers=HEADERS, timeout=20)
+    r.raise_for_status()
+    return r.text
 
 def title_matches(title):
-    lower_title = title.lower()
-    for word in KEYWORDS:
-        if word in lower_title:
+    t = title.lower()
+    for k in KEYWORDS:
+        if k in t:
             return True
     return False
-
 
 def looks_like_video(url):
-    lower_url = url.lower()
+    u = url.lower()
     for ext in VIDEO_EXTENSIONS:
-        if lower_url.endswith(ext):
+        if u.endswith(ext):
             return True
     return False
 
-# =================================================
-# DIAGNOSTICS (SAFE)
-# =================================================
-def diagnose_site(url):
-    print("Diagnosing site...")
+def extract_videos(page_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
 
-    try:
-        html = get_html(url)
-    except Exception as e:
-        print("Diagnostics failed:", e)
-        return "STATIC"
+    page_title = "Untitled"
+    if soup.title and soup.title.string:
+        page_title = soup.title.string.strip()
 
-    lower_html = html.lower()
+    for video in soup.find_all("video"):
+        title = video.get("title", page_title)
+        if not title_matches(title):
+            continue
 
-    if "<video" in lower_html:
-        return "STATIC"
+        src = video.get("src")
+        if src:
+            results.append((title, urljoin(page_url, src)))
 
-    if "<source" in lower_html:
-        return "STATIC"
+        for source in video.find_all("source"):
+            src2 = source.get("src")
+            if src2:
+                results.append((title, urljoin(page_url, src2)))
 
-    if "<iframe" in lower_html:
-        return "IFRAME"
+    for a in soup.find_all("a"):
+        href = a.get("href")
+        if href:
+            full = urljoin(page_url, href)
+            if looks_like_video(full):
+                title = a.text.strip() or page_title
+                if title_matches(title):
+                    results.append((title, full))
 
-    if "/api/" in lower_html:
-        return "API"
+    return results
 
-    if "fetch(" in lower_html:
-        return "API"
+def extract_links(page_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    links = set()
+    base_host = urlparse(START_URL).netloc
 
-    if "axios" in lower_html:
-        return "API"
+    for a in soup.find_all("a"):
+        href = a.get("href")
+        if href:
+            full = urljoin(page_url, href)
+            if urlparse(full).netloc == base_host:
+                links.add(full)
 
-    return "JS_REQUIRED"
+    return links
 
-# =================================================
-# API PROBING
-# =================================================
-def probe_api_endpoints(base_url):
-    endpoints = [
-        "/api/videos",
-        "/api/media",
-        "/videos.json",
-        "/media.json"
-    ]
+def write_playlist(videos):
+    with open(OUTPUT_PLAYLIST, "w", encoding="utf-8") as f:
+        f.write("#EXTM3U\n")
+        for title, url in videos:
+            f.write("#EXTINF:-1," + title + "\n")
+            f.write(url + "\n")
 
-    found = []
+def crawl(start_url):
+    start_time = time.time()
+    visited = set()
+    to_visit = {start_url}
+    videos = []
 
-    for path in endpoints:
+    while to_visit and len(visited) < MAX_PAGES:
+        if time.time() - start_time > MAX_SECONDS:
+            break
+
+        url = to_visit.pop()
+        if url in visited:
+            continue
+
+        visited.add(url)
+
         try:
-            full_url = urljoin(base_url, path)
-            r = requests.get(full_url, headers=HEADERS, timeout=10)
-            content_type = r.headers.get("Content-Type", "")
-            if r.status_code == 200 and "json" in content_type:
-                found.append(full_url)
+            html = get_html(url)
         except Exception:
-            pass
+            continue
 
-    return found
+        videos.extend(extract_videos(url, html))
+        videos = list(dict.fromkeys(videos))
 
+        write_playlist(videos)
+        to_visit.update(extract_links(url, html))
 
-def scrape_api(api_url):
-    print("Scraping API
+    write_playlist(videos)
+    return videos
+
+if __name__ == "__main__":
+    vids = crawl(START_URL)
+    print("Finished with", len(vids), "videos")
