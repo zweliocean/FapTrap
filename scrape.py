@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-PAGE_URL = "https://example.com/videos"
+PAGE_URL = "https://www.eporner.com/recommendations/"
 
 def get_video_urls():
     html = requests.get(PAGE_URL, timeout=20).text
