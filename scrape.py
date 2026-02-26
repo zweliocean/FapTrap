@@ -7,8 +7,8 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/well-fucked-wife-7100673"
-MAX_VIDEOS = 20
+START_URL = "https://xhamster.com/videos/ccc-xhvPFXs"
+MAX_VIDEOS = 40
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
