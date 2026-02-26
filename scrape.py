@@ -11,8 +11,14 @@ START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8e
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
+MIN_DURATION_SECONDS = 60
+MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback filter
+
+# Only treat URLs containing this as real video pages
+VIDEO_PAGE_HINT = "/video/"
+
 # ===============================
-# INTERNAL LOGIC
+# HELPERS
 # ===============================
 
 
@@ -26,12 +32,53 @@ def same_domain(url1, url2):
     return urlparse(url1).netloc == urlparse(url2).netloc
 
 
+def parse_duration_to_seconds(text):
+    try:
+        parts = text.strip().split(":")
+        parts = [int(p) for p in parts]
+
+        if len(parts) == 3:
+            return parts[0]*3600 + parts[1]*60 + parts[2]
+        if len(parts) == 2:
+            return parts[0]*60 + parts[1]
+    except:
+        pass
+    return 0
+
+
+def is_large_enough(url):
+    try:
+        r = requests.head(url, timeout=10)
+        size = int(r.headers.get("Content-Length", 0))
+        return size >= MIN_FILE_SIZE_BYTES
+    except:
+        return False
+
+
+# ===============================
+# EXTRACTION LOGIC
+# ===============================
+
+
 def extract_video_and_title(html, page_url):
     soup = BeautifulSoup(html, "html.parser")
 
+    # Title extraction
+    title_tag = soup.find("title")
+    title = title_tag.text.strip() if title_tag else None
+
+    # Try to find duration text
+    duration_seconds = 0
+
+    # Look for typical duration indicators
+    for tag in soup.find_all(string=True):
+        if ":" in tag and len(tag.strip()) <= 8:
+            duration_seconds = parse_duration_to_seconds(tag)
+            if duration_seconds > 0:
+                break
+
     video_urls = []
 
-    # Extract video sources
     for video in soup.find_all("video"):
         src = video.get("src")
         if src:
@@ -42,11 +89,7 @@ def extract_video_and_title(html, page_url):
         if src:
             video_urls.append(urljoin(page_url, src))
 
-    # Try to extract a clean title
-    title_tag = soup.find("title")
-    title = title_tag.text.strip() if title_tag else None
-
-    return video_urls, title
+    return video_urls, title, duration_seconds
 
 
 def extract_links(html, page_url):
@@ -58,6 +101,11 @@ def extract_links(html, page_url):
         links.append(full_url)
 
     return links
+
+
+# ===============================
+# CRAWLER
+# ===============================
 
 
 def crawl():
@@ -78,14 +126,22 @@ def crawl():
         except Exception:
             continue
 
-        video_urls, title = extract_video_and_title(html, current_url)
+        # Only treat real video pages as candidates
+        if VIDEO_PAGE_HINT in current_url:
+            video_urls, title, duration = extract_video_and_title(html, current_url)
 
-        for video_url in video_urls:
-            if len(collected) >= MAX_VIDEOS:
-                break
+            for video_url in video_urls:
+                if len(collected) >= MAX_VIDEOS:
+                    break
 
-            clean_title = title if title else f"Video {len(collected) + 1}"
-            collected.append((clean_title, video_url))
+                # Duration filter
+                if duration < MIN_DURATION_SECONDS:
+                    # fallback to file size check
+                    if not is_large_enough(video_url):
+                        continue
+
+                clean_title = title if title else f"Video {len(collected) + 1}"
+                collected.append((clean_title, video_url))
 
         # Discover new links
         for link in extract_links(html, current_url):
@@ -95,16 +151,29 @@ def crawl():
     return collected
 
 
+# ===============================
+# PLAYLIST BUILDER (VOD FORMAT)
+# ===============================
+
+
 def build_playlist(videos):
     with open("playlist.m3u8", "w") as f:
         f.write("#EXTM3U\n")
 
         for idx, (title, url) in enumerate(videos, start=1):
             clean_title = title.strip() if title else f"Video {idx}"
-            f.write(f'#EXTINF:-1 group-title="Crawler",{clean_title}\n')
+
+            f.write(
+                f'#EXTINF:-1 tvg-type="movie" type="movie" group-title="Movies",{clean_title}\n'
+            )
             f.write(f"{url}\n")
+
+
+# ===============================
+# ENTRY POINT
+# ===============================
 
 
 if __name__ == "__main__":
     videos = crawl()
-    build_playlist(videos)
+    build_playlist(videos) 
