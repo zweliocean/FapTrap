@@ -1,113 +1,90 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
-from collections import deque
+import time
+import random
 
-START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"  # KEEP YOUR REAL URL HERE
+START_URL = "https://xhamster.com/videos/well-fucked-wife-7100673"
 MAX_VIDEOS = 20
 TIMEOUT = 20
-VIDEO_PAGE_PATTERN = "/videos/"
-EXCLUDED_PATHS = ["/creators/"]
+
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": START_URL
+})
 
 
 def fetch(url):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9"
-    }
-
     print("Fetching:", url)
 
-    response = requests.get(url, headers=headers, timeout=TIMEOUT)
+    response = session.get(url, timeout=TIMEOUT)
+
+    if response.status_code == 429:
+        print("Rate limited. Sleeping 10 seconds...")
+        time.sleep(10)
+        return None
+
     response.raise_for_status()
-
-    print("First 500 chars of HTML:")
-    print(response.text[:500])
-
     return response.text
 
 
-def same_domain(url1, url2):
-    return urlparse(url1).netloc == urlparse(url2).netloc
+def is_valid_video_url(url):
+    path = urlparse(url).path.lower()
 
+    if "/channels/" in path:
+        return False
 
-def is_excluded(url):
-    return any(excluded in url for excluded in EXCLUDED_PATHS)
+    if "/creators/" in path:
+        return False
 
+    if "/videos/" not in path:
+        return False
 
-def extract_video_and_metadata(html, page_url):
-    soup = BeautifulSoup(html, "html.parser")
-
-    video_tag = soup.find("video")
-    print("Video tag found:", bool(video_tag))
-
-    video_urls = []
-
-    for video in soup.find_all("video"):
-        src = video.get("src")
-        if src:
-            video_urls.append(urljoin(page_url, src))
-
-    for source in soup.find_all("source"):
-        src = source.get("src")
-        if src:
-            video_urls.append(urljoin(page_url, src))
-
-    return video_urls
-
-
-def extract_links(html, page_url):
-    soup = BeautifulSoup(html, "html.parser")
-    links = []
-
-    for a in soup.find_all("a", href=True):
-        full_url = urljoin(page_url, a["href"])
-        links.append(full_url)
-
-    return links
+    return True
 
 
 def crawl():
+    print("=== CRAWL STARTED ===")
+
     visited = set()
-    to_visit = deque([START_URL])
-    collected = []
+    queue = [START_URL]
+    videos = []
 
-    print("Starting crawl at:", START_URL)
-
-    while to_visit and len(collected) < MAX_VIDEOS:
-        current_url = to_visit.popleft()
+    while queue and len(videos) < MAX_VIDEOS:
+        current_url = queue.pop(0)
 
         if current_url in visited:
             continue
 
-        if is_excluded(current_url):
-            continue
-
         visited.add(current_url)
 
-        try:
-            html = fetch(current_url)
-        except Exception as e:
-            print("Fetch failed:", e)
+        html = fetch(current_url)
+        if not html:
             continue
 
-        if VIDEO_PAGE_PATTERN in current_url:
-            print("Processing video page:", current_url)
+        soup = BeautifulSoup(html, "html.parser")
 
-            video_urls = extract_video_and_metadata(html, current_url)
+        video_tag = soup.find("video")
 
-            print("Video URLs found:", video_urls)
+        if video_tag and is_valid_video_url(current_url):
+            title_tag = soup.find("title")
+            title = title_tag.text.strip() if title_tag else f"Video {len(videos)+1}"
 
-            for video_url in video_urls:
-                collected.append(("Test", video_url))
+            print("VIDEO FOUND:", title)
+            videos.append((title, current_url))
 
-        for link in extract_links(html, current_url):
-            if (
-                link not in visited
-                and same_domain(START_URL, link)
-                and not is_excluded(link)
-            ):
-                to_visit.append(link)
+        for link in soup.find_all("a", href=True):
+            next_url = urljoin(current_url, link["href"])
 
-    print("Collected final:", collected)
-    return collected 
+            if is_valid_video_url(next_url) and next_url not in visited:
+                queue.append(next_url)
+
+        # Slow down aggressively
+        sleep_time = random.uniform(2, 5)
+        print(f"Sleeping {sleep_time:.2f} seconds...")
+        time.sleep(sleep_time)
+
+    print("Collected:", len(videos))
+    return videos
