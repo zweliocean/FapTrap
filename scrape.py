@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 # Up to 20 keywords = up to 20 IPTV channels
 KEYWORDS = [
     "wife",
-    "news",
+    "teacher",
     "music",
     "comedy",
 ]
