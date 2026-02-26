@@ -17,7 +17,7 @@ KEYWORDS = [
 
 # Must contain BOTH {keyword} and {page}
 # Adjust this to match the site’s pagination format
-PAGINATION_URL = "https://xhamster.com"
+PAGINATION_URL = "https://xhamster.com/videos/bad-teacher-karen-xhZtYKq"
 
 MAX_PAGES = 20          # Hard limit on pagination
 TIMEOUT = 20            # Request timeout (seconds)
