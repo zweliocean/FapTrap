@@ -1,158 +1,115 @@
 import requests
 import time
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
-# =================================================
-# CONFIG
-# =================================================
-START_URL = "https://www.erome.com/BbcOwnYourSlut"
-OUTPUT_PLAYLIST = "playlist.m3u8"
+# ==================================================
+# CONFIGURATION (EDIT ONLY THIS SECTION)
+# ==================================================
 
-KEYWORDS = ["bbc"]
-
-MAX_PAGES = 50
-MAX_SECONDS = 120
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
-
-VIDEO_EXTENSIONS = [
-    ".mp4",
-    ".webm",
-    ".mov",
-    ".mkv",
-    ".avi",
-    ".m3u8"
+# Up to 20 keywords = up to 20 IPTV channels
+KEYWORDS = [
+    "wife",
+    "news",
+    "music",
+    "comedy",
 ]
 
-# =================================================
-# HELPERS
-# =================================================
-def get_html(url):
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    return r.text
+# Must contain BOTH {keyword} and {page}
+# Adjust this to match the site’s pagination format
+PAGINATION_URL = "https://xhamster.com"
+
+MAX_PAGES = 20          # Hard limit on pagination
+TIMEOUT = 20            # Request timeout (seconds)
+ROTATION_HOURS = 3      # Rotate content every 3 hours
+
+# ==================================================
+# INTERNAL LOGIC (DO NOT TOUCH BELOW UNLESS NEEDED)
+# ==================================================
 
 
-def title_matches(title):
-    t = title.lower()
-    for k in KEYWORDS:
-        if k in t:
-            return True
-    return False
+def fetch(url):
+    response = requests.get(url, timeout=TIMEOUT)
+    response.raise_for_status()
+    return response.text
 
 
-def looks_like_video(url):
-    u = url.lower()
-    for ext in VIDEO_EXTENSIONS:
-        if u.endswith(ext):
-            return True
-    return False
-
-# =================================================
-# EXTRACTION
-# =================================================
-def extract_videos(page_url, html):
+def extract_video_urls(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
-    results = []
+    urls = []
 
-    page_title = "Untitled"
-    if soup.title and soup.title.string:
-        page_title = soup.title.string.strip()
-
-    # <video> and <source>
+    # Look for <video src="...">
     for video in soup.find_all("video"):
-        title = video.get("title", page_title)
-        if not title_matches(title):
-            continue
-
         src = video.get("src")
         if src:
-            results.append((title, urljoin(page_url, src)))
+            urls.append(urljoin(base_url, src))
 
-        for source in video.find_all("source"):
-            src2 = source.get("src")
-            if src2:
-                results.append((title, urljoin(page_url, src2)))
+    # Look for <source src="...">
+    for source in soup.find_all("source"):
+        src = source.get("src")
+        if src:
+            urls.append(urljoin(base_url, src))
 
-    # Direct links
-    for a in soup.find_all("a"):
-        href = a.get("href")
-        if href:
-            full = urljoin(page_url, href)
-            if looks_like_video(full):
-                title = a.text.strip() or page_title
-                if title_matches(title):
-                    results.append((title, full)))
-
-    return results
+    return urls
 
 
-def extract_links(page_url, html):
-    soup = BeautifulSoup(html, "html.parser")
-    links = set()
-    base_host = urlparse(START_URL).netloc
+def pick_rotating_video(videos):
+    """
+    Deterministic rotation every ROTATION_HOURS.
+    Same 3-hour window = same video.
+    """
+    if not videos:
+        return None
 
-    for a in soup.find_all("a"):
-        href = a.get("href")
-        if href:
-            full = urljoin(page_url, href)
-            if urlparse(full).netloc == base_host:
-                links.add(full)
+    slot_seconds = ROTATION_HOURS * 60 * 60
+    current_slot = int(time.time() // slot_seconds)
 
-    return links
+    index = current_slot % len(videos)
+    return videos[index]
 
-# =================================================
-# PLAYLIST
-# =================================================
-def write_playlist(videos):
-    with open(OUTPUT_PLAYLIST, "w", encoding="utf-8") as f:
+
+def find_rotating_video_for_keyword(keyword):
+    collected = []
+
+    for page in range(1, MAX_PAGES + 1):
+        page_url = PAGINATION_URL.format(keyword=keyword, page=page)
+
+        try:
+            html = fetch(page_url)
+        except Exception:
+            continue
+
+        videos = extract_video_urls(html, page_url)
+        collected.extend(videos)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_videos = []
+
+    for url in collected:
+        if url not in seen:
+            seen.add(url)
+            unique_videos.append(url)
+
+    return pick_rotating_video(unique_videos)
+
+
+def build_playlist():
+    with open("playlist.m3u8", "w") as f:
         f.write("#EXTM3U\n")
-        for title, url in videos:
-            f.write("#EXTINF:-1," + title + "\n")
-            f.write(url + "\n")
 
-# =================================================
-# CRAWLER
-# =================================================
-def crawl(start_url):
-    start_time = time.time()
-    visited = set()
-    to_visit = {start_url}
-    videos = []
-
-    try:
-        while to_visit and len(visited) < MAX_PAGES:
-            if time.time() - start_time > MAX_SECONDS:
-                break
-
-            url = to_visit.pop()
-            if url in visited:
-                continue
-
-            visited.add(url)
-
+        for keyword in KEYWORDS:
             try:
-                html = get_html(url)
+                video_url = find_rotating_video_for_keyword(keyword)
             except Exception:
                 continue
 
-            videos.extend(extract_videos(url, html))
-            videos = list(dict.fromkeys(videos))
+            if not video_url:
+                continue
 
-            write_playlist(videos)
-            to_visit.update(extract_links(url, html))
+            f.write(f'#EXTINF:-1 group-title="Keywords",{keyword}\n')
+            f.write(f"{video_url}\n")
 
-    finally:
-        write_playlist(videos)
 
-    return videos
-
-# =================================================
-# MAIN
-# =================================================
 if __name__ == "__main__":
-    vids = crawl(START_URL)
-    print("Finished with", len(vids), "videos")
+    build_playlist()
