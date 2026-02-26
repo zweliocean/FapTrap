@@ -7,26 +7,35 @@ from collections import deque
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"   # ← CHANGE THIS
+START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"  # ← CHANGE THIS
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
-MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback
+MIN_FILE_SIZE_BYTES = 5_000_000
 
 VIDEO_PAGE_PATTERN = "/videos/"
 EXCLUDED_PATHS = ["/creators/"]
 
 
 # ===============================
-# HELPERS
+# FETCH WITH BROWSER HEADERS
 # ===============================
 
 def fetch(url):
-    response = requests.get(url, timeout=TIMEOUT)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+
+    response = requests.get(url, headers=headers, timeout=TIMEOUT)
     response.raise_for_status()
     return response.text
 
+
+# ===============================
+# HELPERS
+# ===============================
 
 def same_domain(url1, url2):
     return urlparse(url1).netloc == urlparse(url2).netloc
@@ -52,7 +61,10 @@ def parse_duration_to_seconds(text):
 
 def is_large_enough(url):
     try:
-        r = requests.head(url, timeout=10)
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+        r = requests.head(url, headers=headers, timeout=10)
         size = int(r.headers.get("Content-Length", 0))
         return size >= MIN_FILE_SIZE_BYTES
     except:
@@ -149,7 +161,7 @@ def crawl():
                 if duration >= MIN_DURATION_SECONDS:
                     pass
                 else:
-                    # For direct files only (not HLS streams)
+                    # Skip tiny direct files
                     if ".m3u8" not in video_url.lower():
                         if not is_large_enough(video_url):
                             continue
