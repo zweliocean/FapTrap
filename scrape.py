@@ -11,13 +11,13 @@ from urllib.parse import urljoin
 KEYWORDS = [
     "pawg",
     "teacher",
-    "bbc",
+    "big",
     "fuck",
 ]
 
 # Must contain BOTH {keyword} and {page}
 # Adjust this to match the site’s pagination format
-PAGINATION_URL = "https://www.eporner.com/video-dVpypVmqlP9/pawg-her-google-drive-folder-477-videos-https-rentry-co-c9eid7xw/"
+PAGINATION_URL = "https://xhamster.com/videos/sadie-big-butt-brotha-lovers-14274739"
 
 MAX_PAGES = 20          # Hard limit on pagination
 TIMEOUT = 20            # Request timeout (seconds)
