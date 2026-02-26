@@ -3,23 +3,22 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from collections import deque
 
-# ===============================
+# ==================================================
 # CONFIGURATION
-# ===============================
+# ==================================================
 
 START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
-MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback filter
+MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback
 
-# Only treat URLs containing this as real video pages
-VIDEO_PAGE_HINT = "/video/"
+VIDEO_PAGE_PATTERN = "/videos/"
 
-# ===============================
+# ==================================================
 # HELPERS
-# ===============================
+# ==================================================
 
 
 def fetch(url):
@@ -38,9 +37,9 @@ def parse_duration_to_seconds(text):
         parts = [int(p) for p in parts]
 
         if len(parts) == 3:
-            return parts[0]*3600 + parts[1]*60 + parts[2]
+            return parts[0] * 3600 + parts[1] * 60 + parts[2]
         if len(parts) == 2:
-            return parts[0]*60 + parts[1]
+            return parts[0] * 60 + parts[1]
     except:
         pass
     return 0
@@ -55,22 +54,20 @@ def is_large_enough(url):
         return False
 
 
-# ===============================
-# EXTRACTION LOGIC
-# ===============================
+# ==================================================
+# EXTRACTION
+# ==================================================
 
 
 def extract_video_and_title(html, page_url):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Title extraction
+    # Extract title from HTML
     title_tag = soup.find("title")
     title = title_tag.text.strip() if title_tag else None
 
-    # Try to find duration text
+    # Try to detect duration text
     duration_seconds = 0
-
-    # Look for typical duration indicators
     for tag in soup.find_all(string=True):
         if ":" in tag and len(tag.strip()) <= 8:
             duration_seconds = parse_duration_to_seconds(tag)
@@ -79,6 +76,7 @@ def extract_video_and_title(html, page_url):
 
     video_urls = []
 
+    # Extract video tags
     for video in soup.find_all("video"):
         src = video.get("src")
         if src:
@@ -103,9 +101,9 @@ def extract_links(html, page_url):
     return links
 
 
-# ===============================
+# ==================================================
 # CRAWLER
-# ===============================
+# ==================================================
 
 
 def crawl():
@@ -126,9 +124,14 @@ def crawl():
         except Exception:
             continue
 
-        # Only treat real video pages as candidates
-        if VIDEO_PAGE_HINT in current_url:
+        # Only treat URLs containing /videos/ as real video pages
+        if VIDEO_PAGE_PATTERN in current_url:
             video_urls, title, duration = extract_video_and_title(html, current_url)
+
+            # Fallback: build clean title from URL slug
+            if not title or len(title) > 120:
+                slug = current_url.rstrip("/").split("/")[-1]
+                title = slug.replace("-", " ").replace("_", " ").title()
 
             for video_url in video_urls:
                 if len(collected) >= MAX_VIDEOS:
@@ -136,14 +139,13 @@ def crawl():
 
                 # Duration filter
                 if duration < MIN_DURATION_SECONDS:
-                    # fallback to file size check
                     if not is_large_enough(video_url):
                         continue
 
                 clean_title = title if title else f"Video {len(collected) + 1}"
                 collected.append((clean_title, video_url))
 
-        # Discover new links
+        # Continue crawling internal links
         for link in extract_links(html, current_url):
             if link not in visited and same_domain(START_URL, link):
                 to_visit.append(link)
@@ -151,9 +153,9 @@ def crawl():
     return collected
 
 
-# ===============================
+# ==================================================
 # PLAYLIST BUILDER (VOD FORMAT)
-# ===============================
+# ==================================================
 
 
 def build_playlist(videos):
@@ -169,11 +171,11 @@ def build_playlist(videos):
             f.write(f"{url}\n")
 
 
-# ===============================
+# ==================================================
 # ENTRY POINT
-# ===============================
+# ==================================================
 
 
 if __name__ == "__main__":
     videos = crawl()
-    build_playlist(videos) 
+    build_playlist(videos)
