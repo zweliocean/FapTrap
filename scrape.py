@@ -7,14 +7,15 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"
+START_URL = "https://xhamster.com/search/bbc?min-duration=30&quality=2160p"
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
-MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback
+MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB minimum size fallback
 
 VIDEO_PAGE_PATTERN = "/videos/"
+VIDEO_EXTENSIONS = (".mp4", ".m3u8", ".webm", ".mov", ".avi")
 
 # ==================================================
 # HELPERS
@@ -59,24 +60,24 @@ def is_large_enough(url):
 # ==================================================
 
 
-def extract_video_and_title(html, page_url):
+def extract_video_and_metadata(html, page_url):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract title from HTML
+    # Extract HTML title
     title_tag = soup.find("title")
     title = title_tag.text.strip() if title_tag else None
 
-    # Try to detect duration text
+    # Attempt to detect duration text
     duration_seconds = 0
     for tag in soup.find_all(string=True):
-        if ":" in tag and len(tag.strip()) <= 8:
-            duration_seconds = parse_duration_to_seconds(tag)
+        text = tag.strip()
+        if ":" in text and 3 <= len(text) <= 8:
+            duration_seconds = parse_duration_to_seconds(text)
             if duration_seconds > 0:
                 break
 
     video_urls = []
 
-    # Extract video tags
     for video in soup.find_all("video"):
         src = video.get("src")
         if src:
@@ -124,11 +125,13 @@ def crawl():
         except Exception:
             continue
 
-        # Only treat URLs containing /videos/ as real video pages
+        # Only process real video pages
         if VIDEO_PAGE_PATTERN in current_url:
-            video_urls, title, duration = extract_video_and_title(html, current_url)
+            video_urls, title, duration = extract_video_and_metadata(
+                html, current_url
+            )
 
-            # Fallback: build clean title from URL slug
+            # Fallback: build title from URL slug
             if not title or len(title) > 120:
                 slug = current_url.rstrip("/").split("/")[-1]
                 title = slug.replace("-", " ").replace("_", " ").title()
@@ -136,6 +139,10 @@ def crawl():
             for video_url in video_urls:
                 if len(collected) >= MAX_VIDEOS:
                     break
+
+                # Must look like a media file
+                if not video_url.lower().endswith(VIDEO_EXTENSIONS):
+                    continue
 
                 # Duration filter
                 if duration < MIN_DURATION_SECONDS:
@@ -166,7 +173,8 @@ def build_playlist(videos):
             clean_title = title.strip() if title else f"Video {idx}"
 
             f.write(
-                f'#EXTINF:-1 tvg-type="movie" type="movie" group-title="Movies",{clean_title}\n'
+                f'#EXTINF:-1 tvg-id="{idx}" tvg-name="{clean_title}" tvg-type="movie" '
+                f'type="movie" group-title="Movies",{clean_title}\n'
             )
             f.write(f"{url}\n")
 
