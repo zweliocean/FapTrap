@@ -9,15 +9,15 @@ from urllib.parse import urljoin
 
 # Up to 20 keywords = up to 20 IPTV channels
 KEYWORDS = [
-    "wife",
+    "pawg",
     "teacher",
-    "music",
-    "comedy",
+    "bbc",
+    "fuck",
 ]
 
 # Must contain BOTH {keyword} and {page}
 # Adjust this to match the site’s pagination format
-PAGINATION_URL = "https://xhamster.com/videos/bad-teacher-karen-xhZtYKq"
+PAGINATION_URL = "https://www.eporner.com/video-dVpypVmqlP9/pawg-her-google-drive-folder-477-videos-https-rentry-co-c9eid7xw/"
 
 MAX_PAGES = 20          # Hard limit on pagination
 TIMEOUT = 20            # Request timeout (seconds)
