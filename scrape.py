@@ -7,14 +7,14 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/well-fucked-wife-7100673"
+START_URL = "https://www.xvideos.com/video.hpuchpiae8e/alura_jenson_-_mommy_me_and_a_gangster_kdexxxpornluv_"
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
 MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB minimum size fallback
 
-VIDEO_PAGE_PATTERN = "/videos/"
+VIDEO_PAGE_PATTERN = "/video"
 VIDEO_EXTENSIONS = (".mp4", ".m3u8", ".webm", ".mov", ".avi")
 
 # ==================================================
