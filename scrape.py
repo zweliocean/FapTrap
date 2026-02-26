@@ -7,7 +7,7 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/search/bbc?min-duration=30&quality=2160p"
+START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
