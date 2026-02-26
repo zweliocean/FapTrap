@@ -3,24 +3,24 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from collections import deque
 
-# ==================================================
+# ===============================
 # CONFIGURATION
-# ==================================================
+# ===============================
 
-START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"
+START_URL = "https://xhamster.com/videos/lisa-ann-bbc-anal-and-dp-gangbang-xhZ8eqz"   # ← CHANGE THIS
 MAX_VIDEOS = 20
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
-MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB minimum size fallback
+MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB fallback
 
 VIDEO_PAGE_PATTERN = "/videos/"
-VIDEO_EXTENSIONS = (".mp4", ".m3u8", ".webm", ".mov", ".avi")
+EXCLUDED_PATHS = ["/creators/"]
 
-# ==================================================
+
+# ===============================
 # HELPERS
-# ==================================================
-
+# ===============================
 
 def fetch(url):
     response = requests.get(url, timeout=TIMEOUT)
@@ -30,6 +30,10 @@ def fetch(url):
 
 def same_domain(url1, url2):
     return urlparse(url1).netloc == urlparse(url2).netloc
+
+
+def is_excluded(url):
+    return any(excluded in url for excluded in EXCLUDED_PATHS)
 
 
 def parse_duration_to_seconds(text):
@@ -55,19 +59,18 @@ def is_large_enough(url):
         return False
 
 
-# ==================================================
+# ===============================
 # EXTRACTION
-# ==================================================
-
+# ===============================
 
 def extract_video_and_metadata(html, page_url):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract HTML title
+    # Title
     title_tag = soup.find("title")
     title = title_tag.text.strip() if title_tag else None
 
-    # Attempt to detect duration text
+    # Duration detection
     duration_seconds = 0
     for tag in soup.find_all(string=True):
         text = tag.strip()
@@ -102,10 +105,9 @@ def extract_links(html, page_url):
     return links
 
 
-# ==================================================
+# ===============================
 # CRAWLER
-# ==================================================
-
+# ===============================
 
 def crawl():
     visited = set()
@@ -118,6 +120,9 @@ def crawl():
         if current_url in visited:
             continue
 
+        if is_excluded(current_url):
+            continue
+
         visited.add(current_url)
 
         try:
@@ -126,12 +131,12 @@ def crawl():
             continue
 
         # Only process real video pages
-        if VIDEO_PAGE_PATTERN in current_url:
+        if VIDEO_PAGE_PATTERN in current_url and not is_excluded(current_url):
             video_urls, title, duration = extract_video_and_metadata(
                 html, current_url
             )
 
-            # Fallback: build title from URL slug
+            # Fallback title from URL slug
             if not title or len(title) > 120:
                 slug = current_url.rstrip("/").split("/")[-1]
                 title = slug.replace("-", " ").replace("_", " ").title()
@@ -140,50 +145,25 @@ def crawl():
                 if len(collected) >= MAX_VIDEOS:
                     break
 
-                # Must look like a media file
-                if not video_url.lower().endswith(VIDEO_EXTENSIONS):
-                    continue
-
                 # Duration filter
-                if duration < MIN_DURATION_SECONDS:
-                    if not is_large_enough(video_url):
-                        continue
+                if duration >= MIN_DURATION_SECONDS:
+                    pass
+                else:
+                    # For direct files only (not HLS streams)
+                    if ".m3u8" not in video_url.lower():
+                        if not is_large_enough(video_url):
+                            continue
 
                 clean_title = title if title else f"Video {len(collected) + 1}"
                 collected.append((clean_title, video_url))
 
         # Continue crawling internal links
         for link in extract_links(html, current_url):
-            if link not in visited and same_domain(START_URL, link):
+            if (
+                link not in visited
+                and same_domain(START_URL, link)
+                and not is_excluded(link)
+            ):
                 to_visit.append(link)
 
     return collected
-
-
-# ==================================================
-# PLAYLIST BUILDER (VOD FORMAT)
-# ==================================================
-
-
-def build_playlist(videos):
-    with open("playlist.m3u8", "w") as f:
-        f.write("#EXTM3U\n")
-
-        for idx, (title, url) in enumerate(videos, start=1):
-            clean_title = title.strip() if title else f"Video {idx}"
-
-            f.write(
-                f'#EXTINF:-1 tvg-id="{idx}" tvg-name="{clean_title}" tvg-type="movie" '
-                f'type="movie" group-title="Movies",{clean_title}\n'
-            )
-            f.write(f"{url}\n")
-
-
-# ==================================================
-# ENTRY POINT
-# ==================================================
-
-
-if __name__ == "__main__":
-    videos = crawl()
-    build_playlist(videos)
