@@ -9,7 +9,7 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/subgirl-team-fuck-xha9iFe"
+START_URL = "https://xhamster.com/videos/ofacez-hotwife-bbc-orgy-hotwives-include-subgirl-sadie-andrews-karina-valentina-and-more-xhdMwBE"
 MAX_VIDEOS = 40
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
