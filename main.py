@@ -20,20 +20,13 @@ def load_videos():
         base_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(base_dir, "videos.json")
 
-        print("Attempting to load videos from:", file_path)
-
         if not os.path.exists(file_path):
-            print("videos.json NOT FOUND")
             return []
 
         with open(file_path, "r") as f:
-            data = json.load(f)
+            return json.load(f)
 
-        print("Loaded videos count:", len(data))
-        return data
-
-    except Exception as e:
-        print("ERROR loading videos:", e)
+    except:
         return []
 
 
@@ -45,7 +38,7 @@ def player_api(request: Request):
 
     action = request.query_params.get("action")
 
-    # LOGIN
+    # LOGIN RESPONSE
     if not action:
         return {
             "user_info": {
@@ -55,19 +48,27 @@ def player_api(request: Request):
                 "password": PASSWORD,
                 "active_cons": 1,
                 "max_connections": 1,
+                "is_trial": "0",
                 "allowed_output_formats": ["mp4"]
+            },
+            "server_info": {
+                "url": "faptrap.onrender.com",
+                "port": "443",
+                "https_port": "443",
+                "server_protocol": "https",
+                "rtmp_port": "0"
             }
         }
 
-    # Disable Live
+    # LIVE (disabled)
     if action in ["get_live_categories", "get_live_streams"]:
         return []
 
-    # Disable Series
+    # SERIES (disabled)
     if action in ["get_series_categories", "get_series"]:
         return []
 
-    # VOD Category
+    # VOD CATEGORY
     if action == "get_vod_categories":
         return [
             {
@@ -77,11 +78,10 @@ def player_api(request: Request):
             }
         ]
 
-    # VOD Streams
+    # VOD STREAMS
     if action == "get_vod_streams":
 
         videos = load_videos()
-
         results = []
 
         for idx, video in enumerate(videos, start=1):
