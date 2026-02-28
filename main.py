@@ -1,14 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import requests
+import scrape
 
 app = FastAPI()
 
 USERNAME = "demo"
 PASSWORD = "demo"
-
-GITHUB_RAW_JSON = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/videos.json"
-
 
 def authenticate(request: Request):
     username = request.query_params.get("username")
@@ -23,6 +20,7 @@ def player_api(request: Request):
 
     action = request.query_params.get("action")
 
+    # Login check
     if not action:
         return {
             "user_info": {
@@ -31,6 +29,27 @@ def player_api(request: Request):
             }
         }
 
+    # -----------------
+    # LIVE (empty)
+    # -----------------
+    if action == "get_live_categories":
+        return []
+
+    if action == "get_live_streams":
+        return []
+
+    # -----------------
+    # SERIES (empty)
+    # -----------------
+    if action == "get_series_categories":
+        return []
+
+    if action == "get_series":
+        return []
+
+    # -----------------
+    # MOVIES
+    # -----------------
     if action == "get_vod_categories":
         return [
             {
@@ -40,23 +59,18 @@ def player_api(request: Request):
         ]
 
     if action == "get_vod_streams":
-        try:
-            response = requests.get(GITHUB_RAW_JSON, timeout=10)
-            response.raise_for_status()
-            videos = response.json()
-        except:
-            return []
+        videos = scrape.crawl()
 
         results = []
-        for idx, video in enumerate(videos, start=1):
+        for idx, (title, url) in enumerate(videos, start=1):
             results.append({
                 "num": idx,
-                "name": video["title"],
+                "name": title,
                 "stream_id": idx,
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
-                "direct_source": video["url"]
+                "direct_source": url
             })
 
         return results
