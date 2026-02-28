@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import scrape
+import json
+import os
 
 app = FastAPI()
 
@@ -14,6 +15,28 @@ def authenticate(request: Request):
     return username == USERNAME and password == PASSWORD
 
 
+def load_videos():
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "videos.json")
+
+        print("Attempting to load videos from:", file_path)
+
+        if not os.path.exists(file_path):
+            print("videos.json NOT FOUND")
+            return []
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        print("Loaded videos count:", len(data))
+        return data
+
+    except Exception as e:
+        print("ERROR loading videos:", e)
+        return []
+
+
 @app.get("/player_api.php")
 def player_api(request: Request):
 
@@ -22,9 +45,7 @@ def player_api(request: Request):
 
     action = request.query_params.get("action")
 
-    # =============================
-    # LOGIN RESPONSE
-    # =============================
+    # LOGIN
     if not action:
         return {
             "user_info": {
@@ -35,67 +56,38 @@ def player_api(request: Request):
                 "active_cons": 1,
                 "max_connections": 1,
                 "allowed_output_formats": ["mp4"]
-            },
-            "server_info": {
-                "url": "faptrap.onrender.com",
-                "port": "443",
-                "https_port": "443",
-                "server_protocol": "https"
             }
         }
 
-    # =============================
-    # LIVE (empty)
-    # =============================
-    if action == "get_live_categories":
+    # Disable Live
+    if action in ["get_live_categories", "get_live_streams"]:
         return []
 
-    if action == "get_live_streams":
+    # Disable Series
+    if action in ["get_series_categories", "get_series"]:
         return []
 
-    # =============================
-    # SERIES (empty)
-    # =============================
-    if action == "get_series_categories":
-        return []
-
-    if action == "get_series":
-        return []
-
-    # =============================
-    # MOVIE CATEGORIES
-    # =============================
+    # VOD Category
     if action == "get_vod_categories":
         return [
             {
                 "category_id": "1",
+                "parent_id": 0,
                 "category_name": "Movies"
             }
         ]
 
-    # =============================
-    # MOVIE STREAMS
-    # =============================
+    # VOD Streams
     if action == "get_vod_streams":
 
-        videos = scrape.crawl()
+        videos = load_videos()
 
         results = []
 
         for idx, video in enumerate(videos, start=1):
 
-            # Supports both 2-value and 3-value tuples
-            if isinstance(video, (list, tuple)):
-
-                if len(video) == 3:
-                    title, url, duration = video
-                elif len(video) == 2:
-                    title, url = video
-                    duration = 0
-                else:
-                    continue
-            else:
-                continue
+            title = video.get("title", f"Video {idx}")
+            duration = video.get("duration", 0)
 
             results.append({
                 "num": idx,
@@ -104,7 +96,9 @@ def player_api(request: Request):
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
-                "direct_source": url,
+                "added": "0",
+                "rating": "0",
+                "rating_5based": 0,
                 "duration": duration
             })
 
