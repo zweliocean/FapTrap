@@ -9,6 +9,10 @@ USERNAME = "demo"
 PASSWORD = "demo"
 
 
+def authenticate(username, password):
+    return username == USERNAME and password == PASSWORD
+
+
 def load_videos():
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,10 +28,6 @@ def load_videos():
         return []
 
 
-def authenticate(username, password):
-    return username == USERNAME and password == PASSWORD
-
-
 @app.get("/player_api.php")
 def player_api(request: Request):
 
@@ -39,6 +39,7 @@ def player_api(request: Request):
 
     action = request.query_params.get("action")
 
+    # LOGIN
     if not action:
         return {
             "user_info": {
@@ -49,15 +50,24 @@ def player_api(request: Request):
                 "active_cons": 1,
                 "max_connections": 1,
                 "allowed_output_formats": ["mp4"]
+            },
+            "server_info": {
+                "url": "faptrap.onrender.com",
+                "port": "443",
+                "https_port": "443",
+                "server_protocol": "https"
             }
         }
 
+    # DISABLE LIVE
     if action in ["get_live_categories", "get_live_streams"]:
         return []
 
+    # DISABLE SERIES
     if action in ["get_series_categories", "get_series"]:
         return []
 
+    # VOD CATEGORIES
     if action == "get_vod_categories":
         return [
             {
@@ -67,12 +77,17 @@ def player_api(request: Request):
             }
         ]
 
+    # VOD STREAMS
     if action == "get_vod_streams":
 
         videos = load_videos()
         results = []
 
         for idx, video in enumerate(videos, start=1):
+
+            url = video.get("url")
+            if not url:
+                continue
 
             results.append({
                 "num": idx,
@@ -81,9 +96,11 @@ def player_api(request: Request):
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
+                "direct_source": url,
                 "added": "0",
                 "rating": "0",
-                "rating_5based": 0
+                "rating_5based": 0,
+                "duration": video.get("duration", 0)
             })
 
         return results
