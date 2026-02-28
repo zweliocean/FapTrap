@@ -39,6 +39,7 @@ def player_api(request: Request):
     videos = load_videos()
     action = request.query_params.get("action")
 
+    # Base authentication response
     if not action:
         return {
             "user_info": {
@@ -61,6 +62,7 @@ def player_api(request: Request):
             "available_series": 0
         }
 
+    # Categories
     if action == "get_vod_categories":
         return [{
             "category_id": "1",
@@ -68,6 +70,7 @@ def player_api(request: Request):
             "parent_id": 0
         }]
 
+    # Streams
     if action == "get_vod_streams":
         streams = []
 
@@ -78,7 +81,7 @@ def player_api(request: Request):
                 "stream_type": "movie",
                 "stream_id": idx,
                 "stream_icon": "",
-                "category_id": "1",
+                "category_ids": ["1"],  # <-- CRITICAL FIX
                 "container_extension": "mp4",
                 "added": "0",
                 "rating": "0",
