@@ -23,7 +23,6 @@ def load_videos():
 
         with open(file_path, "r") as f:
             return json.load(f)
-
     except:
         return []
 
@@ -37,9 +36,10 @@ def player_api(request: Request):
     if not authenticate(username, password):
         return JSONResponse({"user_info": {"auth": 0}})
 
+    videos = load_videos()
     action = request.query_params.get("action")
 
-    # LOGIN
+    # LOGIN RESPONSE
     if not action:
         return {
             "user_info": {
@@ -56,35 +56,22 @@ def player_api(request: Request):
                 "port": "443",
                 "https_port": "443",
                 "server_protocol": "https"
-            }
+            },
+            "available_channels": 0,
+            "available_movies": len(videos),
+            "available_series": 0
         }
 
-    # DISABLE LIVE
-    if action in ["get_live_categories", "get_live_streams"]:
-        return []
-
-    # DISABLE SERIES
-    if action in ["get_series_categories", "get_series"]:
-        return []
-
-    # VOD CATEGORIES
     if action == "get_vod_categories":
-        return [
-            {
-                "category_id": "1",
-                "parent_id": 0,
-                "category_name": "Movies"
-            }
-        ]
+        return [{
+            "category_id": "1",
+            "parent_id": 0,
+            "category_name": "Movies"
+        }]
 
-    # VOD STREAMS
     if action == "get_vod_streams":
-
-        videos = load_videos()
         results = []
-
         for idx, video in enumerate(videos, start=1):
-
             url = video.get("url")
             if not url:
                 continue
@@ -96,16 +83,12 @@ def player_api(request: Request):
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
-                "direct_source": url,
-                "added": "0",
-                "rating": "0",
-                "rating_5based": 0,
-                "duration": video.get("duration", 0)
+                "direct_source": url
             })
 
         return results
 
-    return {}
+    return []
 
 
 @app.get("/movie/{username}/{password}/{stream_id}.mp4")
@@ -119,9 +102,4 @@ def stream_movie(username: str, password: str, stream_id: int):
     if stream_id <= 0 or stream_id > len(videos):
         return JSONResponse({"error": "Invalid stream"}, status_code=404)
 
-    video_url = videos[stream_id - 1].get("url")
-
-    if not video_url:
-        return JSONResponse({"error": "Missing source"}, status_code=404)
-
-    return RedirectResponse(video_url)
+    return RedirectResponse(videos[stream_id - 1]["url"])
