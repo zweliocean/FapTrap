@@ -37,7 +37,6 @@ async def log_requests(request: Request, call_next):
     print("======== NEW REQUEST ========")
     print("PATH:", request.url.path)
     print("QUERY:", dict(request.query_params))
-    print("HEADERS:", dict(request.headers))
     print("=============================")
 
     response = await call_next(request)
@@ -64,8 +63,10 @@ def player_api(request: Request):
 
     print("ACTION:", action)
 
+    # ================= AUTH RESPONSE =================
     if not action:
         print("RETURNING AUTH RESPONSE")
+
         return {
             "user_info": {
                 "auth": 1,
@@ -89,12 +90,29 @@ def player_api(request: Request):
                 "timestamp_now": now,
                 "time_now": time.strftime("%Y-%m-%d %H:%M:%S")
             },
-            "available_channels": 0,
+            # 🔥 Enable Live + VOD
+            "available_channels": 1,
             "available_movies": len(videos),
             "available_vod": len(videos),
             "available_series": 0
         }
 
+    # ================= LIVE SECTION (FAKE) =================
+    if action == "get_live_categories":
+        print("RETURNING LIVE CATEGORIES")
+        return [
+            {
+                "category_id": "100",
+                "category_name": "Live TV",
+                "parent_id": 0
+            }
+        ]
+
+    if action == "get_live_streams":
+        print("RETURNING EMPTY LIVE STREAMS")
+        return []
+
+    # ================= VOD SECTION =================
     if action == "get_vod_categories":
         print("RETURNING VOD CATEGORIES")
         return [
