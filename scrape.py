@@ -9,7 +9,7 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/subgirl-enjoys-savvy-g-long-bbc-xh7akOP"
+START_URL = "https://xhamster.com/videos/doc-chocolate-cums-to-kandyland-xh0qJV2"
 MAX_VIDEOS = 40
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
