@@ -39,7 +39,6 @@ def player_api(request: Request):
     videos = load_videos()
     action = request.query_params.get("action")
 
-    # LOGIN RESPONSE
     if not action:
         return {
             "user_info": {
@@ -65,28 +64,29 @@ def player_api(request: Request):
     if action == "get_vod_categories":
         return [{
             "category_id": "1",
-            "parent_id": 0,
-            "category_name": "Movies"
+            "category_name": "Movies",
+            "parent_id": 0
         }]
 
     if action == "get_vod_streams":
-        results = []
-        for idx, video in enumerate(videos, start=1):
-            url = video.get("url")
-            if not url:
-                continue
+        streams = []
 
-            results.append({
+        for idx, video in enumerate(videos, start=1):
+            streams.append({
                 "num": idx,
                 "name": video.get("title", f"Video {idx}"),
+                "stream_type": "movie",
                 "stream_id": idx,
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
-                "direct_source": url
+                "added": "0",
+                "rating": "0",
+                "rating_5based": 0,
+                "stream_url": f"https://faptrap.onrender.com/movie/{USERNAME}/{PASSWORD}/{idx}.mp4"
             })
 
-        return results
+        return streams
 
     return []
 
