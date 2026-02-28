@@ -7,7 +7,7 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/subgirl-enjoys-savvy-g-long-bbc-xh7akOP"
+START_URL = "https://xhamster.com/videos/thick-white-milf-w-big-ass-fucks-a-bbc-in-pawg-video-xhOyRHV"
 MAX_VIDEOS = 40
 TIMEOUT = 20
 
