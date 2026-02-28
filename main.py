@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import json
 import os
 
@@ -7,12 +7,6 @@ app = FastAPI()
 
 USERNAME = "demo"
 PASSWORD = "demo"
-
-
-def authenticate(request: Request):
-    username = request.query_params.get("username")
-    password = request.query_params.get("password")
-    return username == USERNAME and password == PASSWORD
 
 
 def load_videos():
@@ -30,15 +24,21 @@ def load_videos():
         return []
 
 
+def authenticate(username, password):
+    return username == USERNAME and password == PASSWORD
+
+
 @app.get("/player_api.php")
 def player_api(request: Request):
 
-    if not authenticate(request):
+    username = request.query_params.get("username")
+    password = request.query_params.get("password")
+
+    if not authenticate(username, password):
         return JSONResponse({"user_info": {"auth": 0}})
 
     action = request.query_params.get("action")
 
-    # LOGIN
     if not action:
         return {
             "user_info": {
@@ -52,15 +52,12 @@ def player_api(request: Request):
             }
         }
 
-    # Disable Live
     if action in ["get_live_categories", "get_live_streams"]:
         return []
 
-    # Disable Series
     if action in ["get_series_categories", "get_series"]:
         return []
 
-    # VOD Category
     if action == "get_vod_categories":
         return [
             {
@@ -70,7 +67,6 @@ def player_api(request: Request):
             }
         ]
 
-    # VOD Streams
     if action == "get_vod_streams":
 
         videos = load_videos()
@@ -78,27 +74,37 @@ def player_api(request: Request):
 
         for idx, video in enumerate(videos, start=1):
 
-            title = video.get("title", f"Video {idx}")
-            url = video.get("url")
-            duration = video.get("duration", 0)
-
-            if not url:
-                continue
-
             results.append({
                 "num": idx,
-                "name": title,
+                "name": video.get("title", f"Video {idx}"),
                 "stream_id": idx,
                 "stream_icon": "",
                 "category_id": "1",
                 "container_extension": "mp4",
-                "direct_source": url,
                 "added": "0",
                 "rating": "0",
-                "rating_5based": 0,
-                "duration": duration
+                "rating_5based": 0
             })
 
         return results
 
     return {}
+
+
+@app.get("/movie/{username}/{password}/{stream_id}.mp4")
+def stream_movie(username: str, password: str, stream_id: int):
+
+    if not authenticate(username, password):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    videos = load_videos()
+
+    if stream_id <= 0 or stream_id > len(videos):
+        return JSONResponse({"error": "Invalid stream"}, status_code=404)
+
+    video_url = videos[stream_id - 1].get("url")
+
+    if not video_url:
+        return JSONResponse({"error": "Missing source"}, status_code=404)
+
+    return RedirectResponse(video_url)
