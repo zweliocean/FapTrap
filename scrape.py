@@ -7,14 +7,14 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/cuckold-archive-bimbo-fucked-by-3-bbc-in-a-motel-xhsdo34"
+START_URL = "https://www.eporner.com/video-c0zMchuO6Yu/lacey-jayne-ass-nnnnnn/"
 MAX_VIDEOS = 40
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
 MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB minimum size fallback
 
-VIDEO_PAGE_PATTERN = "/videos/"
+VIDEO_PAGE_PATTERN = "/video-"
 VIDEO_EXTENSIONS = (".mp4", ".m3u8", ".webm", ".mov", ".avi")
 
 # ==================================================
