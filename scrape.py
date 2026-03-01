@@ -2,17 +2,18 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, urlunparse
 from collections import deque
+import sys
+import os
 
 # ==================================================
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://www.eporner.com/video-c0zMchuO6Yu/lacey-jayne-ass-nnnnnn/"
-MAX_VIDEOS = 40
+MAX_VIDEOS_PER_SOURCE = 40
 TIMEOUT = 20
 
 MIN_DURATION_SECONDS = 60
-MIN_FILE_SIZE_BYTES = 5_000_000  # ~5MB minimum size fallback
+MIN_FILE_SIZE_BYTES = 5_000_000
 
 VIDEO_PAGE_PATTERN = "/video-"
 VIDEO_EXTENSIONS = (".mp4", ".m3u8", ".webm", ".mov", ".avi")
@@ -33,10 +34,6 @@ def same_domain(url1, url2):
 
 
 def normalize(url):
-    """
-    Remove query params and fragments to prevent
-    infinite crawl via pagination or tracking links.
-    """
     parsed = urlparse(url)
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
@@ -72,11 +69,9 @@ def is_large_enough(url):
 def extract_video_and_metadata(html, page_url):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract HTML title
     title_tag = soup.find("title")
     title = title_tag.text.strip() if title_tag else None
 
-    # Attempt to detect duration text
     duration_seconds = 0
     for tag in soup.find_all(string=True):
         text = tag.strip()
@@ -112,16 +107,18 @@ def extract_links(html, page_url):
 
 
 # ==================================================
-# CRAWLER
+# CONTROLLED CRAWLER
 # ==================================================
 
 
-def crawl():
+def crawl(start_url):
     visited = set()
-    to_visit = deque([normalize(START_URL)])
+    to_visit = deque([normalize(start_url)])
     collected = []
 
-    while to_visit and len(collected) < MAX_VIDEOS:
+    base_domain = urlparse(start_url).netloc
+
+    while to_visit and len(collected) < MAX_VIDEOS_PER_SOURCE:
         current_url = to_visit.popleft()
 
         if current_url in visited:
@@ -134,19 +131,18 @@ def crawl():
         except Exception:
             continue
 
-        # Only process real video pages
+        # Only process actual video pages
         if VIDEO_PAGE_PATTERN in current_url:
             video_urls, title, duration = extract_video_and_metadata(
                 html, current_url
             )
 
-            # Fallback: build title from URL slug
             if not title or len(title) > 120:
                 slug = current_url.rstrip("/").split("/")[-1]
                 title = slug.replace("-", " ").replace("_", " ").title()
 
             for video_url in video_urls:
-                if len(collected) >= MAX_VIDEOS:
+                if len(collected) >= MAX_VIDEOS_PER_SOURCE:
                     break
 
                 if not video_url.lower().endswith(VIDEO_EXTENSIONS):
@@ -159,13 +155,13 @@ def crawl():
                 clean_title = title if title else f"Video {len(collected) + 1}"
                 collected.append((clean_title, video_url))
 
-        # 🔥 Controlled crawl: ONLY video pages
+        # Controlled discovery: only video pages, same domain
         for link in extract_links(html, current_url):
             link = normalize(link)
 
             if (
                 link not in visited
-                and same_domain(START_URL, link)
+                and urlparse(link).netloc == base_domain
                 and VIDEO_PAGE_PATTERN in link
             ):
                 to_visit.append(link)
@@ -174,7 +170,7 @@ def crawl():
 
 
 # ==================================================
-# PLAYLIST BUILDER (VOD FORMAT)
+# PLAYLIST BUILDER
 # ==================================================
 
 
@@ -193,10 +189,40 @@ def build_playlist(videos):
 
 
 # ==================================================
-# ENTRY POINT
+# ENTRY POINT (MULTI-SOURCE SUPPORT)
 # ==================================================
 
 
 if __name__ == "__main__":
-    videos = crawl()
-    build_playlist(videos)
+
+    start_urls = []
+
+    # CLI arguments
+    if len(sys.argv) > 1:
+        start_urls = sys.argv[1:]
+
+    # Environment variable (comma-separated)
+    elif os.getenv("START_URLS"):
+        start_urls = os.getenv("START_URLS").split(",")
+
+    else:
+        print("Provide at least one start URL.")
+        sys.exit(1)
+
+    all_videos = []
+    seen_video_urls = set()
+
+    for url in start_urls:
+        url = url.strip()
+        print(f"\nProcessing source: {url}")
+
+        videos = crawl(url)
+
+        for title, video_url in videos:
+            if video_url not in seen_video_urls:
+                seen_video_urls.add(video_url)
+                all_videos.append((title, video_url))
+
+    print(f"\nTotal unique videos collected: {len(all_videos)}")
+
+    build_playlist(all_videos)
