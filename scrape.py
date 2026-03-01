@@ -9,8 +9,8 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/doc-chocolate-cums-to-kandyland-xh0qJV2"
-MAX_VIDEOS = 40
+START_URL = "https://xhamster.com/videos/bbc-for-milf-whore-xhe00PZ"
+MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
 
