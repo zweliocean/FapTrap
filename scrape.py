@@ -7,7 +7,7 @@ from collections import deque
 # CONFIGURATION
 # ==================================================
 
-START_URL = "https://xhamster.com/videos/cuckold-archive-bimbo-fucked-by-3-bbc-in-a-motel-xhsdo34"
+START_URL = "https://xhamster.com/videos/gorgeous-hottie-kodi-kina-get-fucked-in-a-trio-scene-xhSvlvk"
 MAX_VIDEOS = 40
 TIMEOUT = 20
 
