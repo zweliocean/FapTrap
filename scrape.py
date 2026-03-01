@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from collections import deque
 
 # ==================================================
@@ -30,6 +30,15 @@ def fetch(url):
 
 def same_domain(url1, url2):
     return urlparse(url1).netloc == urlparse(url2).netloc
+
+
+def normalize(url):
+    """
+    Remove query params and fragments to prevent
+    infinite crawl via pagination or tracking links.
+    """
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 
 def parse_duration_to_seconds(text):
@@ -109,7 +118,7 @@ def extract_links(html, page_url):
 
 def crawl():
     visited = set()
-    to_visit = deque([START_URL])
+    to_visit = deque([normalize(START_URL)])
     collected = []
 
     while to_visit and len(collected) < MAX_VIDEOS:
@@ -140,11 +149,9 @@ def crawl():
                 if len(collected) >= MAX_VIDEOS:
                     break
 
-                # Must look like a media file
                 if not video_url.lower().endswith(VIDEO_EXTENSIONS):
                     continue
 
-                # Duration filter
                 if duration < MIN_DURATION_SECONDS:
                     if not is_large_enough(video_url):
                         continue
@@ -152,9 +159,15 @@ def crawl():
                 clean_title = title if title else f"Video {len(collected) + 1}"
                 collected.append((clean_title, video_url))
 
-        # Continue crawling internal links
+        # 🔥 Controlled crawl: ONLY video pages
         for link in extract_links(html, current_url):
-            if link not in visited and same_domain(START_URL, link):
+            link = normalize(link)
+
+            if (
+                link not in visited
+                and same_domain(START_URL, link)
+                and VIDEO_PAGE_PATTERN in link
+            ):
                 to_visit.append(link)
 
     return collected
