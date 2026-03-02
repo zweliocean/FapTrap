@@ -1,11 +1,2 @@
 #EXTM3U
 
-#EXTINF:2060 tvg-id="1" group-title="Movies",xHamster
-https://video7.xhcdn.com/key=wc7jc2hNxoBL8QR8ZKCw9Q,end=1772499600,limit=3/data=57.151.128.136-mv/speed=0/021/594/035/sfw/720p.h264.mp4
-
-#EXTINF:2666 tvg-id="2" group-title="Movies",xHamster
-https://video7.xhcdn.com/key=MOxTCt+PIw5Vpn3DGjkJEw,end=1772499600,limit=3/data=57.151.128.136-mv/speed=0/023/255/482/sfw/480p.h264.mp4
-
-#EXTINF:1662 tvg-id="3" group-title="Movies",xHamster
-https://video7.xhcdn.com/key=BygZA+9t9Nllpha+jG+KjQ,end=1772499600,limit=3/data=57.151.128.136-mv/speed=0/022/537/843/sfw/480p.h264.mp4
-
