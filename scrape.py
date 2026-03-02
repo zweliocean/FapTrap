@@ -9,7 +9,7 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/fuck-my-best-friends-wife-in-the-ass-xhJ8bO5"
+START_URL = "https://xhamster.com/videos/home-vids-of-filthy-grannies-xh6LbCr"
 MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
