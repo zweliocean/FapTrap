@@ -9,7 +9,7 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/harper-coxxx-menonite-betrayer-boned-by-big-black-dick-skunk-riley-xhQtnFA"
+START_URL = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
 MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
