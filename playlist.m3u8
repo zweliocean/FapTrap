@@ -1,2 +1,14 @@
 #EXTM3U
 
+#EXTINF:2890 tvg-id="1" group-title="Movies",xHamster
+https://video7.xhcdn.com/key=NaXUtwpdTIC9NgpECaWtTg,end=1772586000,limit=3/data=57.151.128.137-dvp/speed=0/023/773/278/sfw/720p.h264.mp4
+
+#EXTINF:2676 tvg-id="2" group-title="Movies",xHamster
+https://video7.xhcdn.com/key=pJR+Wk92qxaqthTIhxlS4g,end=1772586000,limit=3/data=57.151.128.137-mv/speed=0/023/773/278/sfw/720p.h264.mp4
+
+#EXTINF:493 tvg-id="3" group-title="Movies",xHamster
+https://video7.xhcdn.com/key=tW71JtbCrFleCNXl5jwXcQ,end=1772586000,limit=3/data=57.151.128.137-mv/speed=0/009/468/821/sfw/720p.h264.mp4
+
+#EXTINF:2599 tvg-id="4" group-title="Movies",xHamster
+https://video7.xhcdn.com/key=LIO0Henme4q4ZM6guSdrVQ,end=1772586000,limit=3/data=57.151.128.137-mv/speed=0/022/087/468/sfw/720p.h264.mp4
+
