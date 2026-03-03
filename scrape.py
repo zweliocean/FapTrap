@@ -9,7 +9,7 @@ import time
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
+START_URL = "https://xhamster.com/videos/stunning-summer-takes-six-dicks-in-a-barbershop-gangbang-interracial-bbc-pawg-xhqofiO"
 MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
