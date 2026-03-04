@@ -24,20 +24,15 @@ else:
     title = "Video"
 
 
-# extract real HLS stream
-stream_match = re.search(r'https://video-cf\.xhcdn\.com[^"]+media=hls[^"]+\.m3u8', html)
+# extract signed mp4 stream
+stream_match = re.search(r'https://video\d+\.xhcdn\.com/key=[^"]+\.mp4', html)
 
 streams = []
 
 if stream_match:
     stream = stream_match.group(0)
-
-    # remove template marker
-    stream = stream.replace("_TPL_.av1.mp4", "index")
-
     print("Stream found")
     streams.append(stream)
-
 else:
     print("Stream not found")
 
