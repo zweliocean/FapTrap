@@ -4,26 +4,40 @@ from urllib.parse import urljoin, urlparse
 from collections import deque
 import re
 import time
+import random
 
 # ===============================
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/stunning-summer-takes-six-dicks-in-a-barbershop-gangbang-interracial-bbc-pawg-xhqofiO"
+START_URL = "https://xhamster.com/videos/stunning-summer-takes-six-dicks-in-a-barbershop-gangbang-interracial-bbc-pawg-xhqofiO"   # <-- SET THIS
 MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
+MAX_RETRIES = 3
 
 VIDEO_PAGE_PATTERN = "/videos/"
 EXCLUDED_PATHS = ["/channels/", "/creators/"]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+]
+
+# ===============================
+# SESSION SETUP
+# ===============================
 
 session = requests.Session()
-session.headers.update(HEADERS)
+session.headers.update({
+    "Accept-Language": "en-US,en;q=0.9",
+})
+
+def rotate_user_agent():
+    session.headers.update({
+        "User-Agent": random.choice(USER_AGENTS)
+    })
 
 # ===============================
 # HELPERS
@@ -42,9 +56,10 @@ def parse_duration_to_seconds(text):
 
 
 def is_valid_url(url):
-    path = urlparse(url).path.lower()
+    parsed = urlparse(url)
+    path = parsed.path.lower()
 
-    if not VIDEO_PAGE_PATTERN in path:
+    if VIDEO_PAGE_PATTERN not in path:
         return False
 
     for excluded in EXCLUDED_PATHS:
@@ -54,12 +69,37 @@ def is_valid_url(url):
     return True
 
 
+def is_same_domain(url, base_domain):
+    return urlparse(url).netloc == base_domain
+
+
+def detect_block(response):
+    text = response.text.lower()
+    if response.status_code in [403, 429, 503]:
+        return True
+    if "captcha" in text or "cloudflare" in text:
+        return True
+    return False
+
+
 def extract_duration(soup):
+    # Look for timestamps in page text
     for text in soup.stripped_strings:
         if re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", text):
             seconds = parse_duration_to_seconds(text)
             if seconds >= MIN_DURATION_SECONDS:
                 return seconds
+
+    # Try meta tags
+    meta_duration = soup.find("meta", property="video:duration")
+    if meta_duration and meta_duration.get("content"):
+        try:
+            seconds = int(meta_duration["content"])
+            if seconds >= MIN_DURATION_SECONDS:
+                return seconds
+        except:
+            pass
+
     return 0
 
 
@@ -72,8 +112,40 @@ def extract_stream_url(soup, page_url):
     if source and source.get("src"):
         return urljoin(page_url, source.get("src"))
 
+    # Look for m3u8 in scripts
+    scripts = soup.find_all("script")
+    for script in scripts:
+        if script.string and ".m3u8" in script.string:
+            match = re.search(r'https?://[^\s"\']+\.m3u8', script.string)
+            if match:
+                return match.group(0)
+
     return None
 
+
+def fetch_with_retry(url):
+    for attempt in range(MAX_RETRIES):
+        try:
+            rotate_user_agent()
+            response = session.get(url, timeout=TIMEOUT)
+            print(f"[{response.status_code}] {url}")
+
+            if detect_block(response):
+                wait = random.uniform(5, 15)
+                print(f"Blocked detected. Waiting {wait:.2f}s...")
+                time.sleep(wait)
+                continue
+
+            response.raise_for_status()
+            return response
+
+        except Exception as e:
+            wait = random.uniform(3, 8)
+            print(f"Error: {e}. Retrying in {wait:.2f}s...")
+            time.sleep(wait)
+
+    print(f"Failed after retries: {url}")
+    return None
 
 # ===============================
 # CRAWLER
@@ -81,8 +153,9 @@ def extract_stream_url(soup, page_url):
 
 def crawl():
     visited = set()
-    queue = deque([START_URL])
     collected = []
+    queue = deque([START_URL])
+    base_domain = urlparse(START_URL).netloc
 
     while queue and len(collected) < MAX_VIDEOS:
         current_url = queue.popleft()
@@ -92,10 +165,8 @@ def crawl():
 
         visited.add(current_url)
 
-        try:
-            response = session.get(current_url, timeout=TIMEOUT)
-            response.raise_for_status()
-        except:
+        response = fetch_with_retry(current_url)
+        if not response:
             continue
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -111,22 +182,24 @@ def crawl():
                     title_tag = soup.find("title")
                     title = title_tag.text.strip() if title_tag else f"Video {len(collected)+1}"
 
+                    print(f"Collected: {title}")
                     collected.append((title, stream_url, duration))
 
-                    if len(collected) >= MAX_VIDEOS:
-                        break
-
-        # Crawl links
+        # Discover links
         for link in soup.find_all("a", href=True):
             next_url = urljoin(current_url, link["href"])
 
-            if next_url not in visited and is_valid_url(next_url):
+            if (
+                next_url not in visited
+                and is_same_domain(next_url, base_domain)
+            ):
                 queue.append(next_url)
 
-        time.sleep(1.5)  # gentle crawl
+        # Random polite delay
+        sleep_time = random.uniform(2, 5)
+        time.sleep(sleep_time)
 
     return collected
-
 
 # ===============================
 # PLAYLIST BUILDER
@@ -142,6 +215,11 @@ def build_playlist(videos):
             f.write(f'#EXTINF:{duration} tvg-id="{idx}" group-title="Movies",{clean_title}\n')
             f.write(f"{url}\n\n")
 
+    print(f"\nPlaylist written with {len(videos)} videos.")
+
+# ===============================
+# MAIN
+# ===============================
 
 if __name__ == "__main__":
     videos = crawl()
