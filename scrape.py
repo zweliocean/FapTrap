@@ -11,7 +11,7 @@ import random
 # ===============================
 
 START_URL = "https://xhamster.com/videos/alura-jenson-meets-the-pussy-monster-xhsf3uv"   # <-- SET THIS
-MAX_VIDEOS = 100
+MAX_VIDEOS = 20
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
 MAX_RETRIES = 3
