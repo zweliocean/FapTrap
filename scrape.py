@@ -2,49 +2,78 @@ import requests
 import re
 import sys
 
-url = sys.argv[1]
+playlist = []
 
 headers = {
-"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
+    "Referer": "https://xhamster.com/"
 }
 
-print("Opening:", url)
-
-r = requests.get(url, headers=headers)
-html = r.text
-
-
-# title
-title_match = re.search(r'property="og:title"\s*content="([^"]+)"', html)
-
-title = title_match.group(1) if title_match else "Video"
+def extract_title(html):
+    match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+    if match:
+        return match.group(1)
+    return "Unknown Video"
 
 
-# player JSON stream
-stream_match = re.search(r'"hls"\s*:\s*"([^"]+)"', html)
-
-streams = []
-
-if stream_match:
-
-    stream = stream_match.group(1).replace("\\/","/")
-
-    print("Stream found:", stream)
-
-    streams.append(stream)
-
-else:
-    print("Stream not found")
+def extract_stream(html):
+    match = re.search(r'https://video\d+\.xhcdn\.com[^"]+\.mp4', html)
+    if match:
+        return match.group(0)
+    return None
 
 
-with open("playlist.m3u8","w") as f:
+def scrape(url):
 
-    f.write("#EXTM3U\n")
+    print("Opening:", url)
 
-    for i,stream in enumerate(streams,1):
+    r = requests.get(url, headers=headers)
 
-        f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" type="movie" group-title="Movies",{title}\n')
-        f.write(stream+"\n")
+    if r.status_code != 200:
+        print("Failed:", r.status_code)
+        return
+
+    html = r.text
+
+    title = extract_title(html)
+    stream = extract_stream(html)
+
+    if stream:
+        print("Stream found")
+        playlist.append((title, stream))
+    else:
+        print("Stream not found")
 
 
-print("Playlist written with",len(streams),"videos")
+def write_playlist():
+
+    with open("playlist.m3u8", "w") as f:
+
+        f.write("#EXTM3U\n")
+
+        for i, (title, stream) in enumerate(playlist):
+
+            f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" group-title="Movies",{title}\n')
+            f.write(stream + "\n")
+
+    print("Playlist written with", len(playlist), "videos")
+
+
+def main():
+
+    urls = sys.argv[1:]
+
+    if not urls:
+        print("Usage: python scrape.py <url1> <url2> ...")
+        return
+
+    for url in urls:
+        scrape(url)
+
+    write_playlist()
+
+
+main()
