@@ -1,53 +1,54 @@
 import requests
+import re
 import time
 import random
-import re
-from bs4 import BeautifulSoup
 
-URLS = [
-    "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
-]
+START_URL = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36"
 }
-
-session = requests.Session()
-session.headers.update(headers)
 
 playlist = []
 
-for url in URLS:
+def fetch_stream(url):
     try:
         print("Fetching:", url)
 
-        r = session.get(url, timeout=30)
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        html = r.text
 
-        if r.status_code != 200:
-            print("Failed:", r.status_code)
-            continue
-
-        soup = BeautifulSoup(r.text, "html.parser")
-
-        html = str(soup)
-
-        match = re.search(r'https://[^"]+\.m3u8', html)
+        match = re.search(r'https://[^"]+\.m3u8[^"]*', html)
 
         if match:
             stream = match.group(0)
-            playlist.append(stream)
             print("Stream found:", stream)
+            return stream
         else:
-            print("Stream not found")
-
-        time.sleep(random.uniform(5, 10))
+            print("Video not found")
+            return None
 
     except Exception as e:
         print("Error:", e)
+        return None
+
+
+stream = fetch_stream(START_URL)
+
+if stream:
+    playlist.append(stream)
+
+time.sleep(random.uniform(2,5))
+
 
 with open("playlist.m3u8", "w") as f:
-    for v in playlist:
+
+    f.write("#EXTM3U\n")
+
+    for i, v in enumerate(playlist):
+
+        f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="Video{i}",Video {i}\n')
         f.write(v + "\n")
 
-print("Playlist written with", len(playlist), "videos.")
+
+print("Playlist written with", len(playlist), "videos")
