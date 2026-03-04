@@ -3,41 +3,47 @@ import re
 import time
 import random
 
-START_URL = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
+URL = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9"
 }
 
 playlist = []
 
-def fetch_stream(url):
-    try:
-        print("Fetching:", url)
+def scrape():
 
-        r = requests.get(url, headers=HEADERS, timeout=20)
-        html = r.text
+    print("Fetching page...")
 
-        match = re.search(r'https://[^"]+\.m3u8[^"]*', html)
+    r = requests.get(URL, headers=HEADERS, timeout=30)
 
-        if match:
-            stream = match.group(0)
-            print("Stream found:", stream)
-            return stream
-        else:
-            print("Video not found")
-            return None
+    if r.status_code != 200:
+        print("Request failed:", r.status_code)
+        return
 
-    except Exception as e:
-        print("Error:", e)
-        return None
+    html = r.text
+
+    # Extract HLS playlist
+    match = re.search(r'https://[^"]+\.m3u8', html)
+
+    if match:
+
+        stream = match.group(0)
+
+        print("Stream found:")
+        print(stream)
+
+        playlist.append(stream)
+
+    else:
+
+        print("Stream not found")
 
 
-stream = fetch_stream(START_URL)
+scrape()
 
-if stream:
-    playlist.append(stream)
-
+# polite delay
 time.sleep(random.uniform(2,5))
 
 
@@ -45,10 +51,10 @@ with open("playlist.m3u8", "w") as f:
 
     f.write("#EXTM3U\n")
 
-    for i, v in enumerate(playlist):
+    for i, stream in enumerate(playlist):
 
         f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="Video{i}",Video {i}\n')
-        f.write(v + "\n")
+        f.write(stream + "\n")
 
 
 print("Playlist written with", len(playlist), "videos")
