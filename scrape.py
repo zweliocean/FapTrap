@@ -1,46 +1,50 @@
 import requests
 import re
+import sys
 
-url = "https://xhamster.com/videos/sharing-wife-with-bull-xhXDUF8"
+url = sys.argv[1]
 
 headers = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",
-"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-"Accept-Language": "en-US,en;q=0.5",
-"Referer": "https://xhamster.com/",
-"Connection": "keep-alive"
+"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
 }
 
-print("Fetching page...")
+print("Opening:", url)
 
 r = requests.get(url, headers=headers)
+
 html = r.text
 
-streams = []
-
-# Find MP4 stream
-match = re.search(r'https://video\d+\.xhcdn\.com[^"]+\.mp4', html)
-
-if match:
-    stream = match.group(0)
-    streams.append(stream)
-    print("Stream found:", stream)
-else:
-    print("Stream not found")
 
 # Extract title
-title_match = re.search(r'<title>(.*?)</title>', html)
+title_match = re.search(r'property="og:title"\s*content="([^"]+)"', html)
 
 if title_match:
     title = title_match.group(1)
 else:
     title = "Video"
 
-with open("playlist.m3u8", "w") as f:
+
+# Extract stream
+stream_match = re.search(r'https://video[^"]+\.m3u8', html)
+
+streams = []
+
+if stream_match:
+    stream = stream_match.group(0)
+    print("Stream found")
+    streams.append(stream)
+else:
+    print("Stream not found")
+
+
+with open("playlist.m3u8","w") as f:
+
     f.write("#EXTM3U\n")
 
-    for i, stream in enumerate(streams, start=1):
-        f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" type="movie" group-title="Movies",{title}\n')
-        f.write(stream + "\n")
+    for i,stream in enumerate(streams,1):
 
-print("Playlist written with", len(streams), "videos")
+        f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" type="movie" group-title="Movies",{title}\n')
+        f.write(stream+"\n")
+
+
+print("Playlist written with",len(streams),"videos")

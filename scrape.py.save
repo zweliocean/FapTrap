@@ -1,0 +1,86 @@
+hg
+
+-gccCTRL + Cimport reques	import re
+import sys
+import time
+
+headers = {
+"User-Agent": "Mozilla/5.0",
+"Referer": "https://xhamster.com/"
+}
+
+if len(sys.argv) < 2:
+    print("Usage: python scrape.py <category_or_search_url>")
+    sys.exit()
+
+start_url = sys.argv[1]
+
+print("Fetching category page...")
+
+r = requests.get(start_url, headers=headers)
+html = r.text
+
+
+# -------- collect video page links --------
+
+video_links = re.findall(r'href="(/videos/[^"]+)"', html)
+
+# remove duplicates
+video_links = list(dict.fromkeys(video_links))
+
+video_links = video_links[:20]
+
+print("Found", len(video_links), "videos")
+
+
+streams = []
+
+for link in video_links:
+
+    video_url = "https://xhamster.com" + link
+
+    print("Checking:", video_url)
+
+    try:
+        r = requests.get(video_url, headers=headers, timeout=15)
+        html = r.text
+
+        # extract MP4 stream
+        match = re.search(r'https://video\d+\.xhcdn\.com[^"]+\.mp4', html)
+
+        if match:
+
+            stream = match.group(0)
+
+            slug = link.split("/videos/")[1].split("-xh")[0]
+            title = slug.replace("-", " ").title()
+
+            streams.append((title, stream))
+
+            print("Stream found")
+
+        else:
+            print("No stream")
+
+        time.sleep(2)
+
+    except:
+        print("Failed request")
+
+
+# -------- write playlist --------
+
+with open("playlist.m3u8", "w") as f:
+
+    f.write("#EXTM3U\n")
+
+    for i, (title, stream) in enumerate(streams, start=1):
+
+        f.write(
+            f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" type="movie" group-title="Movies",{title}\n'
+        )
+
+        f.write(stream + "\n")
+
+
+print("Playlist written with", len(streams), "videos")
