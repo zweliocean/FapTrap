@@ -1,97 +1,54 @@
 import requests
 import re
 import sys
-from urllib.parse import urljoin
+
+playlist = []
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
     "Referer": "https://xhamster.com/"
 }
 
-MAX_VIDEOS = 20
-
-visited = set()
-playlist = []
-
-
 def extract_title(html):
-
     match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
-
     if match:
         return match.group(1)
-
-    return "Video"
+    return "Unknown Video"
 
 
 def extract_stream(html):
-
     match = re.search(r'https://video\d+\.xhcdn\.com[^"]+\.mp4', html)
-
     if match:
         return match.group(0)
-
     return None
-
-
-def extract_links(html):
-
-    matches = re.findall(r'/videos/[a-zA-Z0-9\-]+-\d+', html)
-
-    links = []
-
-    for m in matches:
-
-        url = "https://xhamster.com" + m
-
-        if url not in visited:
-            links.append(url)
-
-    return list(set(links))
 
 
 def scrape(url):
 
-    if url in visited:
-        return []
-
     print("Opening:", url)
 
-    visited.add(url)
-
-    try:
-        r = requests.get(url, headers=headers, timeout=20)
-    except:
-        return []
+    r = requests.get(url, headers=headers)
 
     if r.status_code != 200:
-        return []
+        print("Failed:", r.status_code)
+        return
 
     html = r.text
 
     title = extract_title(html)
     stream = extract_stream(html)
 
-    if stream and "xhcdn.com" in stream:
-
+    if stream:
+        print("Stream found")
         playlist.append((title, stream))
-
-        print("✔ Added:", title)
-
-    return extract_links(html)
+    else:
+        print("Stream not found")
 
 
-def main(start_url):
-
-    queue = [start_url]
-
-    while queue and len(playlist) < MAX_VIDEOS:
-
-        url = queue.pop(0)
-
-        new_links = scrape(url)
-
-        queue.extend(new_links)
+def write_playlist():
 
     with open("playlist.m3u8", "w") as f:
 
@@ -99,15 +56,24 @@ def main(start_url):
 
         for i, (title, stream) in enumerate(playlist):
 
-            f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" group-title="Movies",{title}\n')
+            f.write(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{title}" tvg-type="movie" group-title="Movies",{title}\n')
             f.write(stream + "\n")
 
     print("Playlist written with", len(playlist), "videos")
 
 
-if __name__ == "__main__":
+def main():
 
-    if len(sys.argv) < 2:
-        print("Usage: python scrape.py <video_url>")
-    else:
-        main(sys.argv[1])
+    urls = sys.argv[1:]
+
+    if not urls:
+        print("Usage: python scrape.py <url1> <url2> ...")
+        return
+
+    for url in urls:
+        scrape(url)
+
+    write_playlist()
+
+
+main()
