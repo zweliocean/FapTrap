@@ -1,3 +1,3 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="0" tvg-name="Video0",Video 0
-https://video-cf.xhcdn.com/%2Fo7HNIzXIC6VnpAAKe4NsNRwbk8g7iAcqlZdqu6ZE8o%3D/58/1772629200/media=hls4/multi=256x144:144p:,426x240:240p:/019/152/487/_TPL_.av1.mp4.m3u8
+#EXTINF:-1 tvg-id="1" tvg-name="Video1" tvg-type="movie" type="movie" group-title="Movies",Video 1
+https://video7.xhcdn.com/key=1yH5QQ8aTxk0kDDWuL5f7g,end=1772629200,limit=3/data=213.139.10.86-mv/speed=0/019/152/487/240p.h264.mp4
