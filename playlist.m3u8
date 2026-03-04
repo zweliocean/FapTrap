@@ -1,3 +1,3 @@
 #EXTM3U
-#EXTINF:-1 tvg-id="1" tvg-name="Video1" tvg-type="movie" type="movie" group-title="Movies",Video 1
-https://video7.xhcdn.com/key=1yH5QQ8aTxk0kDDWuL5f7g,end=1772629200,limit=3/data=213.139.10.86-mv/speed=0/019/152/487/240p.h264.mp4
+#EXTINF:-1 tvg-id="1" tvg-name="Video" tvg-type="movie" type="movie" group-title="Movies",Video
+https://video7.xhcdn.com/key=9pgN0oeUjGjyVJaMZL7k5g,end=1772632800,limit=3/data=213.139.10.86-mv/speed=0/019/152/487/240p.h264.mp4
