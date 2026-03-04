@@ -11,28 +11,28 @@ headers = {
 print("Opening:", url)
 
 r = requests.get(url, headers=headers)
-
 html = r.text
 
 
-# extract title
+# title
 title_match = re.search(r'property="og:title"\s*content="([^"]+)"', html)
 
-if title_match:
-    title = title_match.group(1)
-else:
-    title = "Video"
+title = title_match.group(1) if title_match else "Video"
 
 
-# extract signed mp4 stream
-stream_match = re.search(r'https://video\d+\.xhcdn\.com/key=[^"]+\.mp4', html)
+# player JSON stream
+stream_match = re.search(r'"hls"\s*:\s*"([^"]+)"', html)
 
 streams = []
 
 if stream_match:
-    stream = stream_match.group(0)
-    print("Stream found")
+
+    stream = stream_match.group(1).replace("\\/","/")
+
+    print("Stream found:", stream)
+
     streams.append(stream)
+
 else:
     print("Stream not found")
 
