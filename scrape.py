@@ -10,7 +10,7 @@ import random
 # CONFIGURATION
 # ===============================
 
-START_URL = "https://xhamster.com/videos/alura-jenson-meets-the-pussy-monster-xhsf3uv"   # <-- SET THIS
+START_URL = "https://xhamster.com/videos/mature-wife-gets-fucked-in-every-hole-highlights-ep-1-xh8KLmj"   # <-- SET THIS
 MAX_VIDEOS = 100
 TIMEOUT = 20
 MIN_DURATION_SECONDS = 60
