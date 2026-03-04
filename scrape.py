@@ -15,7 +15,7 @@ r = requests.get(url, headers=headers)
 html = r.text
 
 
-# Extract title
+# extract title
 title_match = re.search(r'property="og:title"\s*content="([^"]+)"', html)
 
 if title_match:
@@ -24,15 +24,20 @@ else:
     title = "Video"
 
 
-# Extract stream
-stream_match = re.search(r'https://video[^"]+\.m3u8', html)
+# extract real HLS stream
+stream_match = re.search(r'https://video-cf\.xhcdn\.com[^"]+media=hls[^"]+\.m3u8', html)
 
 streams = []
 
 if stream_match:
     stream = stream_match.group(0)
+
+    # remove template marker
+    stream = stream.replace("_TPL_.av1.mp4", "index")
+
     print("Stream found")
     streams.append(stream)
+
 else:
     print("Stream not found")
 
