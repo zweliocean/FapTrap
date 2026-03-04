@@ -14,16 +14,16 @@ r = requests.get(URL, headers=HEADERS, timeout=30)
 html = r.text
 
 
-# extract video title
-title_match = re.search(r'<title>(.*?)</title>', html)
+# Extract title from og:title (more reliable)
+title_match = re.search(r'property="og:title"\s*content="([^"]+)"', html)
 
 if title_match:
-    title = title_match.group(1).replace(" | xHamster", "").strip()
+    title = title_match.group(1).strip()
 else:
     title = "Video"
 
 
-# extract mp4 stream
+# Extract MP4 stream
 stream_match = re.search(r'https://video\d+\.xhcdn\.com[^"]+\.mp4', html)
 
 streams = []
